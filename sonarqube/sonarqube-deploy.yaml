@@ -34,10 +34,7 @@ spec:
           name: sonarqube
           env:
             - name: SONARQUBE_JDBC_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-pwd
-                  key: password
+              value: "123456"
             - name: SONARQUBE_JDBC_URL
               value: jdbc:postgresql://sonar-postgres:5432/sonar
             - name: SONARQUBE_JDBC_USERNAME
@@ -52,11 +49,11 @@ spec:
             name: sonar-extensions
       volumes:
       - name: sonar-data
-        persistentVolumeClaim:
-          claimName: sonar-data
+        hostPath:
+          path: /data/sonar-data
       - name: sonar-extensions
-        persistentVolumeClaim:
-          claimName: sonar-extensions
+        hostPath:
+          path: /data/sonar-extensions
 ---
 apiVersion: v1
 kind: Service
@@ -74,17 +71,17 @@ spec:
   selector:
     name: sonarqube
 ---
-apiVersion: traefik.containo.us/v1alpha1
-kind: IngressRoute
+apiVersion: extensions/v1beta1
+kind: Ingress
 metadata:
   name: sonarqube
   namespace: devops
 spec:
-  entryPoints:
-  - web
-  routes:
-  - match: Host(`sonarqube-test.xxxx.cn`)
-    kind: Rule
-    services:
-    - name: sonar
-      port: 9000
+  rules:
+    - host: sonarqube.qh.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: sonarqube
+              servicePort: 9000

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: gitlab
-        image: sameersbn/gitlab:11.8.1
+        image: sameersbn/gitlab:13.6.0
         imagePullPolicy: IfNotPresent
         env:
         - name: TZ
@@ -33,7 +33,7 @@ spec:
         - name: GITLAB_ROOT_PASSWORD
           value: admin@123456
         - name: GITLAB_ROOT_EMAIL
-          value: coolops@163.com
+          value: horus-k@qq.com
         - name: GITLAB_HOST
           value: gitlab-test.coolops.cn
         - name: GITLAB_PORT
@@ -72,22 +72,22 @@ spec:
         volumeMounts:
         - mountPath: /home/git/data
           name: data
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 180
-          timeoutSeconds: 5
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 5
-          timeoutSeconds: 1
+        # livenessProbe:
+        #   httpGet:
+        #     path: /
+        #     port: 80
+        #   initialDelaySeconds: 180
+        #   timeoutSeconds: 5
+        # readinessProbe:
+        #   httpGet:
+        #     path: /
+        #     port: 80
+        #   initialDelaySeconds: 5
+        #   timeoutSeconds: 1
       volumes:
       - name: data
-        persistentVolumeClaim:
-          claimName: gitlab-pvc
+        hostPath:
+            path: /data/gitlab
 
 ---
 apiVersion: v1
@@ -111,18 +111,18 @@ spec:
     name: gitlab
 
 ---
-apiVersion: traefik.containo.us/v1alpha1
-kind: IngressRoute
+apiVersion: extensions/v1beta1
+kind: Ingress
 metadata:
-  name: argocd-server
+  name: gitlab
   namespace: devops
 spec:
-  entryPoints:
-  - web
-  routes:
-  - match: Host(`gitlab-test.xxxx.cn`)
-    kind: Rule
-    services:
-    - name: gitlab 
-      port: 80
+  rules:
+    - host: gitlab.qh.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: gitlab
+              servicePort: 80
 

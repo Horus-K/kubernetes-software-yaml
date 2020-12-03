@@ -18,11 +18,11 @@ spec:
       serviceAccount: jenkins-sa
       containers:
       - name: jenkins
-        image: registry.cn-hangzhou.aliyuncs.com/rookieops/jenkins:2.18.2 
+        image: registry.cn-hangzhou.aliyuncs.com/xqbl-share/jenkins_root:2.235.2-lts-centos7
         imagePullPolicy: IfNotPresent
         env:
         - name: JAVA_OPTS
-          value: -XshowSettings:vm -Dhudson.slaves.NodeProvisioner.initialDelay=0 -Dhudson.slaves.NodeProvisioner.MARGIN=50 -Dhudson.slaves.NodeProvisioner.MARGIN0=0.85 -Duser.timezone=Asia/Shanghai
+          value: -XshowSettings:vm -Dhudson.slaves.NodeProvisioner.initialDelay=0 -Dhudson.slaves.NodeProvisioner.MARGIN=50 -Dhudson.slaves.NodeProvisioner.MARGIN0=0.85 -Duser.timezone=Asia/Shanghai -Dfile.encoding=utf-8
         ports:
         - containerPort: 8080
           name: web
@@ -54,12 +54,10 @@ spec:
         volumeMounts:
         - name: jenkinshome
           mountPath: /var/jenkins_home
-      securityContext:
-        fsGroup: 1000
       volumes:
       - name: jenkinshome
         hostPath:
-            path: /data/jenkins
+            path: /data/jenkins   
 
 ---
 apiVersion: v1
@@ -81,19 +79,18 @@ spec:
   - name: agent
     port: 50000
     targetPort: agent
-
-# ---
-# apiVersion: traefik.containo.us/v1alpha1
-# kind: IngressRoute
-# metadata:
-#   name: jenkins
-#   namespace: devops
-# spec:
-#   entryPoints:
-#   - web
-#   routes:
-#   - match: Host(`jenkins-test.qh.cn`)
-#     kind: Rule
-#     services:
-#     - name: jenkins
-#       port: 8080
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: jenkins
+  namespace: devops
+spec:
+  rules:
+    - host: jenkins.qh.com
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: jenkins
+              servicePort: 8080
