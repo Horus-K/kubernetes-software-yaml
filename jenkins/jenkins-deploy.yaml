@@ -82,18 +82,18 @@ spec:
     port: 50000
     targetPort: agent
 
----
-apiVersion: traefik.containo.us/v1alpha1
-kind: IngressRoute
-metadata:
-  name: jenkins
-  namespace: devops
-spec:
-  entryPoints:
-  - web
-  routes:
-  - match: Host(`jenkins-test.qh.cn`)
-    kind: Rule
-    services:
-    - name: jenkins
-      port: 8080
+# ---
+# apiVersion: traefik.containo.us/v1alpha1
+# kind: IngressRoute
+# metadata:
+#   name: jenkins
+#   namespace: devops
+# spec:
+#   entryPoints:
+#   - web
+#   routes:
+#   - match: Host(`jenkins-test.qh.cn`)
+#     kind: Rule
+#     services:
+#     - name: jenkins
+#       port: 8080
