@@ -1977,7 +1977,6 @@ rules:
   resources:
   - secrets
   - configmaps
-  - services
   verbs:
   - get
   - list
@@ -2002,19 +2001,6 @@ rules:
   verbs:
   - create
   - list
-- apiGroups:
-  - traefik.containo.us
-  resources:
-  - tlsoptions
-  verbs:
-  - create
-  - get
-  - list
-  - watch
-  - update
-  - patch
-  - delete
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -2157,7 +2143,7 @@ metadata:
   name: argocd-application-controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole 
+  kind: Role
   name: argocd-application-controller
 subjects:
 - kind: ServiceAccount
@@ -2392,13 +2378,11 @@ metadata:
     app.kubernetes.io/part-of: argocd
   name: argocd-server
 spec:
-  type: NodePort
   ports:
   - name: http
     port: 80
     protocol: TCP
     targetPort: 8080
-    nodePort: 30693
   - name: https
     port: 443
     protocol: TCP
@@ -2440,6 +2424,15 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-dex-server
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
       containers:
       - command:
         - /shared/argocd-util
@@ -2460,7 +2453,7 @@ spec:
         - -n
         - /usr/local/bin/argocd-util
         - /shared
-        image: argoproj/argocd:latest
+        image: argoproj/argocd:v1.8.0-rc2
         imagePullPolicy: Always
         name: copyutil
         volumeMounts:
@@ -2488,6 +2481,21 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-redis
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-redis
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
       containers:
       - args:
         - --save
@@ -2523,6 +2531,21 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-repo-server
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-repo-server
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
       automountServiceAccountToken: false
       containers:
       - command:
@@ -2530,7 +2553,7 @@ spec:
         - argocd-repo-server
         - --redis
         - argocd-redis:6379
-        image: argoproj/argocd:latest
+        image: argoproj/argocd:v1.8.0-rc2
         imagePullPolicy: Always
         name: argocd-repo-server
         ports:
@@ -2580,12 +2603,27 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-server
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-server
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
       containers:
       - command:
         - argocd-server
         - --staticassets
         - /shared/app
-        image: argoproj/argocd:latest
+        image: argoproj/argocd:v1.8.0-rc2
         imagePullPolicy: Always
         name: argocd-server
         ports:
@@ -2632,6 +2670,21 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-application-controller
     spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-application-controller
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
       containers:
       - command:
         - argocd-application-controller
@@ -2639,7 +2692,7 @@ spec:
         - "20"
         - --operation-processors
         - "10"
-        image: argoproj/argocd:latest
+        image: argoproj/argocd:v1.8.0-rc2
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
