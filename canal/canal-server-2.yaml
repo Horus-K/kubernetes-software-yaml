@@ -1,0 +1,128 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: canal-server-hs-2
+  namespace: canal
+  labels:
+    k8s-app: canal-server-2
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "11112"
+spec:
+  ports:
+    - port: 11110
+      name: canal-admin-port
+    - port: 11111
+      name: canal-server-port
+    - port: 11112
+      name: metrics-port
+  selector:
+    k8s-app: canal-server-2
+  clusterIP: None
+  type: ClusterIP
+---
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: canal-server-2
+  namespace: canal
+  labels:
+    k8s-app: canal-server-2
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      k8s-app: canal-server-2
+  template:
+    metadata:
+      labels:
+        k8s-app: canal-server-2
+    spec:
+      containers:
+        - name: canal-server
+          image: >-
+            registry.cn-hangzhou.aliyuncs.com/nbugs-share/nbugs-canal-server:v1.1.4
+          ports:
+            - name: admin-port
+              containerPort: 11110
+              protocol: TCP
+            - name: canal-port
+              containerPort: 11111
+              protocol: TCP
+            - name: metrics-port
+              containerPort: 11112
+              protocol: TCP
+          env:
+            - name: canal.ip
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: canal.register.ip
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: canal.pod.name
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: canal.service.name
+              value: canal-server-hs-2
+            - name: canal.namespace
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: canal.admin.register.auto
+              value: 'true'
+            - name: canal.admin.register.cluster
+              value: nbugs-canal
+          resources:
+            limits:
+              cpu: 500m
+              memory: 2Gi
+            requests:
+              cpu: 500m
+              memory: 2Gi
+          volumeMounts:
+            - name: canal-conf-2
+              mountPath: /canal-data
+          imagePullPolicy: Always
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: k8s-app
+                      operator: In
+                      values:
+                        - canal-server
+                topologyKey: kubernetes.io/hostname
+      schedulerName: default-scheduler
+  volumeClaimTemplates:
+    - kind: PersistentVolumeClaim
+      apiVersion: v1
+      metadata:
+        name: canal-conf-2
+        annotations:
+          volume.beta.kubernetes.io/storage-class: managed-nfs-storage
+      spec:
+        accessModes:
+          - ReadWriteMany
+        resources:
+          requests:
+            storage: 10Gi
+        volumeMode: Filesystem
+      status:
+        phase: Pending
+  serviceName: canal-server-hs-2
+  revisionHistoryLimit: 10
+

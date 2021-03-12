@@ -1,0 +1,113 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: canal-server-hs
+  namespace: canal
+  labels:
+    k8s-app: canal-server
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "11112"
+
+spec:
+  ports:
+    - port: 11110
+      name: canal-admin-port
+    - port: 11111
+      name: canal-server-port
+    - port: 11112
+      name: metrics-port
+  selector:
+    k8s-app: canal-server
+  clusterIP: None
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: canal-server
+  namespace: canal
+  labels:
+    k8s-app: canal-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: canal-server
+  serviceName: canal-server-hs
+  template:
+    metadata:
+      labels:
+        k8s-app: canal-server
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution: #软策略
+          - weight: 100
+            podAffinityTerm:
+              topologyKey: "kubernetes.io/hostname"
+              labelSelector:
+                matchExpressions:
+                  - key: "k8s-app"
+                    operator: In
+                    values:
+                      - "canal-server"
+      containers:
+        - name: canal-server
+          image: registry.cn-hangzhou.aliyuncs.com/nbugs-share/nbugs-canal-server:v1.1.4
+          imagePullPolicy: Always
+          env:
+            # tcp bind ip
+            - name: "canal.ip"
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            # register ip to zookeeper
+            - name: "canal.register.ip"
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            # podName + serviceName + namespace = hostname
+            - name: "canal.pod.name"
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: "canal.service.name"
+              value: "canal-server-hs"
+            - name: "canal.namespace"
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: canal.admin.register.auto
+              value: 'true'
+            # 自动注册至对应的集群
+            - name: "canal.admin.register.cluster"
+              value: "nbugs-canal-2"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: 500m
+              memory: 2Gi
+          ports:
+            - containerPort: 11110
+              name: admin-port
+            - containerPort: 11111
+              name: canal-port
+            - containerPort: 11112
+              name: metrics-port
+          volumeMounts:
+          - name: canal-conf
+            mountPath: /canal-data
+      restartPolicy: Always
+  volumeClaimTemplates:
+  - metadata:
+      name: canal-conf
+      annotations:
+        volume.beta.kubernetes.io/storage-class: "managed-nfs-storage"   #这个要和创建的pv对应
+    spec:
+      accessModes: [ "ReadWriteMany" ]
+      resources:
+        requests:
+          storage: 10Gi

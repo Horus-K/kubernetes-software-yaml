@@ -22,13 +22,14 @@ spec:
         securityContext:
           privileged: true          #赋予权限能执行系统命令
       containers:
-        - image: sonarqube:latest
+        - image: sonarqube:lts
           lifecycle:
             postStart:
               exec:
                 command:
                 - touch
                 - /opt/sonarqube/logs/es.log
+          resources: {}
           args:
             - -Dsonar.web.context=/
           name: sonarqube
@@ -47,6 +48,8 @@ spec:
             name: sonar-data
           - mountPath: "/opt/sonarqube/extensions/"
             name: sonar-extensions
+          # - name: sonarqube-lib
+          #   mountPath: /opt/sonarqube/lib
       volumes:
       - name: sonar-data
         hostPath:
@@ -54,6 +57,9 @@ spec:
       - name: sonar-extensions
         hostPath:
           path: /data/sonar-extensions
+      # - name: sonarqube-lib
+      #   hostPath:
+      #     path: /data/sonar-lib
 ---
 apiVersion: v1
 kind: Service
@@ -96,7 +102,6 @@ metadata:
     kubernetes.io/ingress.class: nginx
     kubernetes.io/tls-acme: "true"
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
-
 spec:
   rules:
   - host: argocd.qh.com
