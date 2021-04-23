@@ -1,57 +1,55 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: zk-hs
-  namespace: test
+  name: zk-hs2
+  namespace: canal
   labels:
-    app: zk-test
+    app: zk2
 spec:
   ports:
   - port: 2888
     name: server
   - port: 3888
     name: leader-election
-  - port: 2181
-    name: client
   clusterIP: None
   selector:
-    app: zk-test
+    app: zk2
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: zk-cs
-  namespace: test
+  name: zk-cs2
+  namespace: canal
   labels:
-    app: zk-test
+    app: zk2
 spec:
   ports:
   - port: 2181
     name: client
   selector:
-    app: zk-test
+    app: zk2
 ---
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
 metadata:
-  name: zk-pdb
-  namespace: test
+  name: zk-pdb2
+  namespace: canal
 spec:
   selector:
     matchLabels:
-      app: zk-test
+      app: zk2
   maxUnavailable: 1
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: zk
-  namespace: test
+  name: zk2
+  namespace: canal
 spec:
   selector:
     matchLabels:
-      app: zk-test
-  serviceName: zk-hs
+      app: zk2
+  serviceName: zk-hs2
   replicas: 3
   updateStrategy:
     type: RollingUpdate
@@ -59,7 +57,7 @@ spec:
   template:
     metadata:
       labels:
-        app: zk-test
+        app: zk2
     spec:
       # nodeSelector:
       #   app: app
@@ -74,7 +72,7 @@ spec:
                   - key: "app"
                     operator: In
                     values:
-                      - "zk-test"
+                      - "zk2"
 
       containers:
       - name: kubernetes-zookeeper

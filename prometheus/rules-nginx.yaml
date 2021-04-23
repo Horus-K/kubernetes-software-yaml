@@ -1,0 +1,34 @@
+groups:
+- name: Nginx
+  rules:
+  - alert: Nginx 4xx错误率高
+    # record: job:nginx:nginx_vts_server_requests_total:rate10m
+    expr: sum by (host) (rate(nginx_vts_server_requests_total{code=~"^4..",host!="*",host!="_"}[5m])) / sum by (host) (rate(nginx_vts_server_requests_total[5m])) * 100 > 0.01
+    for: 1m
+    labels:
+      severity: critical
+      send: PrometheusAlert
+    annotations:
+      summary: Nginx 4xx错误率高
+      description: 域名:{{ $labels.host }} 4xx错误率 > 0.01%\n VALUE = {{ $value }}
+      delay_value: "{{ $value }}"
+
+  - alert: Nginx 5xx错误率高
+    # record: job:nginx:nginx_vts_server_requests_total:rate10m
+    expr: sum by (host) (rate(nginx_vts_server_requests_total{code=~"^5..",host!="*",host!="_"}[5m])) / sum by (host) (rate(nginx_vts_server_requests_total[5m])) * 100 > 0.01
+    for: 1m
+    labels:
+      severity: critical
+      send: PrometheusAlert
+    annotations:
+      summary: Nginx 5xx错误率高
+      description: 域名:{{ $labels.host }} 5xx错误率 > 0.01%\n VALUE = {{ $value }}
+      delay_value: "{{ $value }}"
+  - alert: NodeMemoryUsage
+    expr: (node_memory_MemTotal_bytes - (node_memory_MemFree_bytes + node_memory_Buffers_bytes + node_memory_Cached_bytes)) / node_memory_MemTotal_bytes * 100 > 20
+    for: 2m
+    labels:
+      team: node
+    annotations:
+      summary: "{{$labels.instance}}: High Memory usage detected"
+      description: "{{$labels.instance}}: Memory usage is above 20% (current value is: {{ $value }}"

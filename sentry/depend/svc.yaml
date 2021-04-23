@@ -1,0 +1,69 @@
+
+# Source: sentry/templates/metrics-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nbugs-sentry-metrics
+  labels:
+    app: nbugs-sentry
+    chart: "sentry-4.3.3"
+    release: "nbugs-sentry"
+    heritage: "Helm"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9102
+    targetPort: 9102
+    protocol: TCP
+    name: metrics
+  - port: 9125
+    targetPort: 9125
+    protocol: UDP
+    name: statsd
+  selector:
+    app: nbugs-sentry
+    release: nbugs-sentry
+    role: metrics
+---
+# Source: sentry/templates/web-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nbugs-sentry
+  # annotations:
+  labels:
+    app: nbugs-sentry
+    chart: "sentry-4.3.3"
+    release: "nbugs-sentry"
+    heritage: "Helm"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9000
+    targetPort: 9000
+    protocol: TCP
+    name: sentry
+  selector:
+    app: nbugs-sentry
+    role: web
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+ name: nbugs-sentry
+ labels:
+    app: nbugs-sentry
+    chart: "sentry-4.3.3"
+    release: "nbugs-sentry"
+    heritage: "Helm"
+#  annotations:
+spec:
+  rules:
+    - host: sentry.nbugs.com
+      http:
+        paths:
+          - path: "/"
+            backend:
+              serviceName: nbugs-sentry
+              servicePort: 9000

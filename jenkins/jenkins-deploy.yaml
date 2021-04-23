@@ -3,26 +3,27 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: jenkins
-  namespace: devops 
+  namespace: devops
 spec:
   selector:
     matchLabels:
-      app: jenkins
+      app: jenkins-new
   replicas: 1
   template:
     metadata:
       labels:
-        app: jenkins
+        app: jenkins-new
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: cn-hangzhou.10.10.198.29
       terminationGracePeriodSeconds: 10
       serviceAccount: jenkins-sa
       containers:
       - name: jenkins
-        image: registry.cn-hangzhou.aliyuncs.com/xqbl-share/jenkins_root:2.235.2-lts-centos7
-        imagePullPolicy: IfNotPresent
+        image: registry-vpc.cn-hangzhou.aliyuncs.com/nbugs-share/jenkins_root:2.277.1
         env:
         - name: JAVA_OPTS
-          value: -XshowSettings:vm -Dhudson.slaves.NodeProvisioner.initialDelay=0 -Dhudson.slaves.NodeProvisioner.MARGIN=50 -Dhudson.slaves.NodeProvisioner.MARGIN0=0.85 -Duser.timezone=Asia/Shanghai -Dfile.encoding=utf-8
+          value: -Xms2048m -Xmx2048m -XshowSettings:vm -Dhudson.slaves.NodeProvisioner.initialDelay=0 -Dhudson.slaves.NodeProvisioner.MARGIN=50 -Dhudson.slaves.NodeProvisioner.MARGIN0=0.85 -Duser.timezone=Asia/Shanghai -Dfile.encoding=utf-8
         ports:
         - containerPort: 8080
           name: web
@@ -32,11 +33,11 @@ spec:
           protocol: TCP
         resources:
           limits:
-            cpu: 1000m
-            memory: 1Gi
+            cpu: 4000m
+            memory: 2.5Gi
           requests:
             cpu: 500m
-            memory: 512Mi
+            memory: 2Gi
         livenessProbe:
           httpGet:
             path: /login
@@ -57,7 +58,7 @@ spec:
       volumes:
       - name: jenkinshome
         hostPath:
-            path: /data/jenkins   
+            path: /data/jenkins
 
 ---
 apiVersion: v1
@@ -66,10 +67,10 @@ metadata:
   name: jenkins
   namespace: devops 
   labels:
-    app: jenkins
+    app: jenkins-new
 spec:
   selector:
-    app: jenkins
+    app: jenkins-new
   type: NodePort
   ports:
   - name: web
@@ -87,7 +88,7 @@ metadata:
   namespace: devops
 spec:
   rules:
-    - host: jenkins.qh.com
+    - host: jenkins-new.nbugs.com
       http:
         paths:
           - path: /

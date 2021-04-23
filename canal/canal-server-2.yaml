@@ -41,7 +41,7 @@ spec:
       containers:
         - name: canal-server
           image: >-
-            registry.cn-hangzhou.aliyuncs.com/nbugs-share/nbugs-canal-server:v1.1.4
+            registry.cn-hangzhou.aliyuncs.com/nbugs-share/nbugs-canal-server:v1.1.4-jvm
           ports:
             - name: admin-port
               containerPort: 11110
@@ -53,6 +53,11 @@ spec:
               containerPort: 11112
               protocol: TCP
           env:
+            # 日志收集
+            - name: aliyun_logs_canal-sh-user-center1
+              value: "/home/admin/canal-server/logs/sh-user-center1/*.log"
+            - name: aliyun_logs_canal-t1
+              value: "/home/admin/canal-server/logs/t1/*.log"
             - name: canal.ip
               valueFrom:
                 fieldRef:
@@ -78,7 +83,16 @@ spec:
             - name: canal.admin.register.auto
               value: 'true'
             - name: canal.admin.register.cluster
-              value: nbugs-canal
+              value: nbugs-canal-2
+            - name: JAVA_OPTS
+              value: >-
+                -server -Xms4096m -Xmx4096m -XX:SurvivorRatio=2 -XX:PermSize=96m
+                -XX:MaxPermSize=256m -Xss256k -XX:-UseAdaptiveSizePolicy
+                -XX:MaxTenuringThreshold=15 -XX:+DisableExplicitGC
+                -XX:+UseConcMarkSweepGC -XX:+CMSParallelRemarkEnabled
+                -XX:+UseCMSCompactAtFullCollection -XX:+UseFastAccessorMethods
+                -XX:+UseCMSInitiatingOccupancyOnly
+                -XX:+HeapDumpOnOutOfMemoryError
           resources:
             limits:
               cpu: 500m

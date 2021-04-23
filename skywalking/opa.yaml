@@ -1,0 +1,93 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: skywalking-oap
+  namespace: hhjy-prod
+  labels:
+    app: skywalking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skywalking
+      component: oap
+      release: skywalking
+  template:
+    metadata:
+      labels:
+        app: skywalking
+        component: oap
+        release: skywalking
+    spec:
+      containers:
+        - name: oap
+          image: 'apache/skywalking-oap-server:8.1.0-es7'
+          ports:
+            - name: grpc
+              containerPort: 11800
+              protocol: TCP
+            - name: rest
+              containerPort: 12800
+              protocol: TCP
+          env:
+            - name: JAVA_OPTS
+              value: '-Xmx2g -Xms2g -Dmode=no-init'
+            - name: SW_CLUSTER
+              value: kubernetes
+            - name: SW_CLUSTER_K8S_NAMESPACE
+              value: hhjy-prod
+            - name: SW_CLUSTER_K8S_LABEL
+              value: 'app=skywalking,release=skywalking,component=oap'
+            - name: SKYWALKING_COLLECTOR_UID
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.uid
+            - name: SW_STORAGE
+              value: elasticsearch7
+            - name: SW_STORAGE_ES_CLUSTER_NODES
+              value: '<ip>:9200'
+          resources: {}
+          livenessProbe:
+            tcpSocket:
+              port: 12800
+            initialDelaySeconds: 15
+            timeoutSeconds: 1
+            periodSeconds: 20
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: 12800
+            initialDelaySeconds: 15
+            timeoutSeconds: 1
+            periodSeconds: 20
+            successThreshold: 1
+            failureThreshold: 3
+          imagePullPolicy: Always
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      serviceAccountName: skywalking-oap
+      serviceAccount: skywalking-oap
+      securityContext: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: skywalking
+                    component: oap
+                    release: skywalking
+                topologyKey: kubernetes.io/hostname
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600
+

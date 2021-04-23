@@ -1,0 +1,13 @@
+groups:
+- name: canal
+  rules:
+  - alert: 延迟
+    expr: canal_instance_ack_delay > 300000
+    for: 1m
+    labels:
+      severity: critical
+      app: canal
+    annotations:
+      description: canal-server延迟大于5分钟
+      summary: canal-server延迟大于5分钟
+      delay_value: "{{ $value }}"

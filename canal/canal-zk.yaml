@@ -11,6 +11,8 @@ spec:
     name: server
   - port: 3888
     name: leader-election
+  - port: 2181
+    name: client
   clusterIP: None
   selector:
     app: zk
@@ -61,16 +63,16 @@ spec:
     spec:
       # nodeSelector:
       #   app: app
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                  - key: "app"
-                    operator: In
-                    values:
-                    - zk
-              topologyKey: "kubernetes.io/hostname"
+      # affinity:
+      #   podAntiAffinity:
+      #     requiredDuringSchedulingIgnoredDuringExecution:
+      #       - labelSelector:
+      #           matchExpressions:
+      #             - key: "app"
+      #               operator: In
+      #               values:
+      #               - zk
+      #         topologyKey: "kubernetes.io/hostname"
       containers:
       - name: kubernetes-zookeeper
         imagePullPolicy: Always

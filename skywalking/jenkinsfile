@@ -1,0 +1,62 @@
+pipeline {
+    agent any
+    stages {
+        stage('test deploy') {
+          steps {
+            sh '''
+              content=$JOB_NAME"项目发布中,发布分支为$Branch，发布环境 $publishing_environment"
+              echo $content
+              curl 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=b8c25e8e-35c8-4c52-9a5a-93bf17bf4202' -H 'Content-Type: application/json' -d '{"msgtype": "text","text": {"content": "'"$content"'"}}'
+              rm -rf /var/jenkins_home/deploy-k8s/${JOB_BASE_NAME}
+              rm -rf *
+            '''
+				    checkout([$class: 'GitSCM', branches: [[name: 'master']],doGenerateSubmoduleConfigurations: false, extensions: [],submoduleCfg: [], userRemoteConfigs: [[credentialsId:'e7884206-ea97-4579-b5c0-9662fd8d03d5', url:'git@code.aliyun.com:nbugs-yw/jenkins.git']]])
+            sh '''
+                mkdir /var/jenkins_home/deploy-k8s/${JOB_BASE_NAME}
+                mv * /var/jenkins_home/deploy-k8s/${JOB_BASE_NAME}/
+            '''
+                checkout([$class: 'GitSCM', branches: [[name: '${Branch}']],doGenerateSubmoduleConfigurations: false, extensions: [],submoduleCfg: [], userRemoteConfigs: [[credentialsId:'e7884206-ea97-4579-b5c0-9662fd8d03d5', 
+                url:'git@code.aliyun.com:nbugs/sys-manage.git']]])
+                sh '''
+                  pwd
+                  ls *
+                  mv /var/jenkins_home/deploy-k8s/${JOB_BASE_NAME}/* .
+                  mv aly_k8s_jar_jenkins_deploy/deploy.yaml .
+                  mv aly_k8s_jar_jenkins_deploy/temporary.txt .
+                  /var/jenkins_home/apache-maven-3.6.0/bin/mvn clean clean install -DskipTests
+                  package_name=sys-manage.jar
+                  check_url=/ping
+                  package_path=$(find . -name $package_name)
+                  mv $package_path $package_name
+                  echo "#!/bin/bash\njava -Xmx1000m -Dfile.encoding=utf-8 -Dspring.profiles.active=test -Ddisconf.env=test  -Dpandora.location=/root/taobao-hsf.sar -Dserver.port=8080 -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8000 -javaagent:/agent/skywalking-agent.jar -Dskywalking.agent.service_name=sys-manager-test -Dskywalking.collector.backend_service=10.11.192.102:11800 -jar $package_name" > catalina.sh
+                  sed -i "s#jar_name#$package_name#g" aly_k8s_jar_jenkins_deploy/Dockerfile
+                  cp -a /var/jenkins_home/skywalking_agent/agent .
+                  sed -i "s@# skywalking@COPY agent /agent @" aly_k8s_jar_jenkins_deploy/Dockerfile
+                  datetime=$(date "+%Y%m%d%H%M%S")
+                  deploy_name=${JOB_BASE_NAME}-${datetime}
+                  cat aly_k8s_jar_jenkins_deploy/docker_passwd.txt |  docker login --username nbugs_dev --password-stdin registry-vpc.cn-hangzhou.aliyuncs.com/nbugs_dev/test
+                  echo $Branch > temporary.txt
+                  Branch_result=`cat temporary.txt|awk -F'/' '{print $NF}'`
+                  images=registry-vpc.cn-hangzhou.aliyuncs.com/nbugs_dev/test:jar-${JOB_BASE_NAME}-$datetime
+                  sed -i "" aly_k8s_jar_jenkins_deploy/Dockerfile
+                  sed -i "s#jenkins_java_images#$images#g" deploy.yaml
+                  sed -i "s/environment/${publishing_environment}/" deploy.yaml
+                  sed -i "s/project_name/${JOB_BASE_NAME}/" deploy.yaml
+                  sed -i "s/ingress-nginx-name/${JOB_BASE_NAME}/" deploy.yaml
+                  sed -i "s/JAVA_OPTS_memory/-Xmx1024m/" deploy.yaml
+                  sed -i "s/JAVA_OPTS_resources_cpu/1000m/" deploy.yaml
+                  sed -i "s/JAVA_OPTS_resources/1060Mi/" deploy.yaml
+                  sed -i "s#check_url#$check_url#" deploy.yaml
+                  cat deploy.yaml
+                  cat aly_k8s_jar_jenkins_deploy/Dockerfile
+                  docker build -t ${images} -f aly_k8s_jar_jenkins_deploy/Dockerfile .
+                  docker push ${images}
+                  kubectl apply -f deploy.yaml
+                  sed -i "s/project_name/${JOB_BASE_NAME}/" aly_k8s_jar_jenkins_deploy/curl.sh
+                  sed -i "s#check_url#$check_url#" aly_k8s_jar_jenkins_deploy/curl.sh
+                  bash aly_k8s_jar_jenkins_deploy/curl.sh
+                '''
+            }
+        }
+    }
+}

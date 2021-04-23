@@ -1,0 +1,123 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nbugs-sentry-web
+  labels:
+    app: nbugs-sentry
+    chart: "sentry-4.3.3"
+    release: "nbugs-sentry"
+    heritage: "Helm"
+spec:
+  selector:
+    matchLabels:
+        app: nbugs-sentry
+        release: "nbugs-sentry"
+        role: web
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        metrics-enabled: "true"
+        # checksum/configYml: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        # checksum/sentryConfPy: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        # checksum/secrets.yaml: 40b9c72591f3a5e9d651ad1b8c0e25fe43bcc053b527bfc341e745416b66f218
+      labels:
+        app: nbugs-sentry
+        release: "nbugs-sentry"
+        role: web
+    spec:
+      serviceAccountName: nbugs-sentry
+      containers:
+      - name: sentry-web
+        image: "sentry:9.1.2"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9000
+        env:
+        - name: SENTRY_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: nbugs-sentry
+              key: sentry-secret
+        - name: SENTRY_DB_USER
+          value: "postgres" # pg用户名
+        - name: SENTRY_DB_NAME
+          value: "sentry-k8s" # pg数据库名
+        - name: SENTRY_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nbugs-sentry-sentry-postgresql
+              key: "postgresql-password"
+        - name: SENTRY_POSTGRES_HOST
+          value: nbugs-sentry-sentry-postgresql # pghost地址
+        - name: SENTRY_POSTGRES_PORT
+          value: "5432"
+        - name: SENTRY_REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nbugs-sentry
+              key: "redis-password"
+        - name: SENTRY_REDIS_HOST
+          value: "redis" # reids-host
+        - name: SENTRY_REDIS_PORT
+          value: "6379"
+        - name: SENTRY_EMAIL_HOST
+          value: "smtp"
+        - name: SENTRY_EMAIL_PORT
+          value: "465"
+        - name: SENTRY_EMAIL_USER
+          value: "jira@nbugs.com"
+        - name: SENTRY_EMAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: nbugs-sentry
+              key: smtp-password
+        - name: SENTRY_EMAIL_USE_TLS
+          value: "true"
+        - name: SENTRY_SERVER_EMAIL
+          value: "jira@nbugs.com"
+        
+        - name: GITHUB_APP_ID
+          value: null
+        - name: GITHUB_API_SECRET
+          value: null
+        volumeMounts:
+        - mountPath: /etc/sentry
+          name: config
+          readOnly: true
+        - mountPath: /var/lib/sentry/files
+          name: sentry-data
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /_health/
+            port: 9000
+            scheme: HTTP
+          initialDelaySeconds: 50
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 2
+        readinessProbe:
+          failureThreshold: 10
+          httpGet:
+            path: /_health/
+            port: 9000
+            scheme: HTTP
+          initialDelaySeconds: 50
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 2
+        resources:
+            limits:
+              cpu: 500m
+              memory: 500Mi
+            requests:
+              cpu: 300m
+              memory: 300Mi
+      volumes:
+      - name: config
+        configMap:
+          name: nbugs-sentry
+      - name: sentry-data
+        persistentVolumeClaim:
+          claimName: nbugs-sentry

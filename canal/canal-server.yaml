@@ -54,9 +54,14 @@ spec:
                       - "canal-server"
       containers:
         - name: canal-server
-          image: registry.cn-hangzhou.aliyuncs.com/nbugs-share/nbugs-canal-server:v1.1.4
+          image: registry.cn-hangzhou.aliyuncs.com/nbugs-share/nbugs-canal-server:v1.1.4-jvm
           imagePullPolicy: Always
           env:
+            # 日志收集
+            - name: aliyun_logs_canal-server
+              value: "/home/admin/canal-server/logs/sh-user-center/*.log"
+            - name: aliyun_logs_logtag_tags
+              value: app=canal-server
             # tcp bind ip
             - name: "canal.ip"
               valueFrom:
@@ -83,6 +88,15 @@ spec:
             # 自动注册至对应的集群
             - name: "canal.admin.register.cluster"
               value: "nbugs-canal-2"
+            - name: JAVA_OPTS
+              value: >-
+                -server -Xms4096m -Xmx4096m -XX:SurvivorRatio=2 -XX:PermSize=96m
+                -XX:MaxPermSize=256m -Xss256k -XX:-UseAdaptiveSizePolicy
+                -XX:MaxTenuringThreshold=15 -XX:+DisableExplicitGC
+                -XX:+UseConcMarkSweepGC -XX:+CMSParallelRemarkEnabled
+                -XX:+UseCMSCompactAtFullCollection -XX:+UseFastAccessorMethods
+                -XX:+UseCMSInitiatingOccupancyOnly
+                -XX:+HeapDumpOnOutOfMemoryError
           resources:
             requests:
               cpu: 500m

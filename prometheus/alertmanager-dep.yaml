@@ -18,6 +18,9 @@ spec:
       - name: alertcfg
         configMap:
           name: alert-config
+      - name: time
+        hostPath:
+          path: /etc/localtime
       containers:
       - name: alertmanager
         image: prom/alertmanager:v0.20.0
@@ -30,6 +33,8 @@ spec:
         volumeMounts:
         - mountPath: "/etc/alertmanager"
           name: alertcfg
+        - mountPath: "/etc/localtime"
+          name: time
         resources:
           requests:
             cpu: 100m

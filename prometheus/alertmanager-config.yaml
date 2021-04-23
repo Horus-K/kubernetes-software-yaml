@@ -26,31 +26,27 @@ data:
       group_interval: 30s
 
       # 如果一个报警信息已经发送成功了，等待 repeat_interval 时间来重新发送他们，不同类型告警发送频率需要具体配置
-      repeat_interval: 10m
+      repeat_interval: 1m
 
       # 默认的receiver：如果一个报警没有被一个route匹配，则发送给默认的接收器
-      receiver: default
+      receiver: prometheusalert-base
 
       # 上面所有的属性都由所有子路由继承，并且可以在每个子路由上进行覆盖。
       routes:
-      # - receiver: email
-      #   group_wait: 30s
-      #   match:
-      #     team: node
-      - receiver: 'prometheusalert-dingding'
+      - receiver: 'p-wx-canal'
         group_wait: 10s
         match:
-          team: node
+          app: canal
     receivers:
     - name: 'default'
       email_configs:
       - to: 'horus-k@qq.com'
         send_resolved: true  # 接受告警恢复的通知
-    - name: 'email'
-      email_configs:
-      - to: 'quhui@nbugs.com'
-        send_resolved: true
-    - name: 'prometheusalert-dingding'
+    - name: 'prometheusalert-base'
       webhook_configs:
-      - url: 'http://prometheus-alert-center.default:8080/prometheusalert?type=dd&tpl=prometheus-ddtest&ddurl=https://oapi.dingtalk.com/robot/send?access_token=36de8c44ba098fabb0d22121269749073aa229a376f68d56a431b706d1ad441a'
-        send_resolved: true  # 接受告警恢复的通知
+      - url: 'http://prometheus-alert-center.default:8080/prometheusalert?type=wx&tpl=prometheus-wx-base&wxurl=https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=694f0906-fcf1-4f58-b70b-7ae3f0334549'
+        send_resolved: true
+    - name: 'p-wx-canal'
+      webhook_configs:
+      - url: 'http://prometheus-alert-center.default:8080/prometheusalert?type=dd&tpl=p-wx-canal&ddurl=https://oapi.dingtalk.com/robot/send?access_token=36de8c44ba098fabb0d22121269749073aa229a376f68d56a431b706d1ad441a'
+        send_resolved: true

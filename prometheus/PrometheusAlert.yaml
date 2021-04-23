@@ -38,7 +38,7 @@ data:
     #日志文件路径
     logpath=logs/prometheusalertcenter.log
     #转换Prometheus,graylog告警消息的时区为CST时区(如默认已经是CST时区，请勿开启)
-    prometheus_cst_time=0
+    prometheus_cst_time=1
     #数据库驱动，支持sqlite3，mysql,postgres如使用mysql或postgres，请开启db_host,db_port,db_user,db_password,db_name的注释
     db_driver=mysql
     db_host=rm-bp1802u9k6p6s9sf9.mysql.rds.aliyuncs.com
