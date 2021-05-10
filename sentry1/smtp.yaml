@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smtp
+  namespace: sentry
+  labels:
+    app: smtp
+spec:
+  selector:
+    matchLabels:
+        app: smtp
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: smtp
+    spec:
+      containers:
+      - name: smtp
+        image: "tianon/exim4"
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 25
+        volumeMounts:
+        - mountPath: /var/spool/exim4
+          name: data
+        - mountPath: /var/log/exim4
+          name: log
+        resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 512Mi
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: smtp-data
+      - name: log
+        persistentVolumeClaim:
+          claimName: smtp-log
+      
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: smtp-data
+  namespace: sentry
+spec:
+  storageClassName: ali-nas-subpath
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: smtp-log
+  namespace: sentry
+spec:
+  storageClassName: ali-nas-subpath
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smtp
+  namespace: sentry
+spec:
+  ports:
+    - name: tcp
+      port: 25
+      protocol: TCP
+      targetPort: 25
+  selector:
+    app: smtp
+  sessionAffinity: None
+  type: ClusterIP

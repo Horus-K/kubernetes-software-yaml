@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: symbolicator-cleanup
+  namespace: sentry
+  labels:
+    app: symbolicator-cleanup
+spec:
+  selector:
+    matchLabels:
+        app: symbolicator-cleanup
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: symbolicator-cleanup
+    spec:
+      containers:
+      - name: symbolicator-cleanup
+        image: "registry.cn-hangzhou.aliyuncs.com/nbugs-share/sentry:symbolicator-cleanup-onpremise-local"
+        imagePullPolicy: IfNotPresent
+        command:
+          - "/entrypoint.sh"
+        args:
+          - '55 23 * * * gosu symbolicator symbolicator cleanup'
+        ports:
+          - containerPort: 3021
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: symbolicator-data
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: symbolicator-cleanup
+  namespace: sentry
+spec:
+  ports:
+    - name: tcp
+      port: 3021
+      protocol: TCP
+      targetPort: 3021
+  clusterIP: None
+  selector:
+    app: symbolicator-cleanup
+  sessionAffinity: None
+  type: ClusterIP

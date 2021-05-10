@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clickhouse
+  namespace: sentry
+  labels:
+    app: clickhouse
+spec:
+  selector:
+    matchLabels:
+        app: clickhouse
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: clickhouse
+    spec:
+      containers:
+      - name: clickhouse
+        image: "yandex/clickhouse-server:19.17"
+        imagePullPolicy: IfNotPresent
+        command:
+          - /entrypoint.sh
+        ports:
+          - containerPort: 8123
+          - containerPort: 9000
+          - containerPort: 9009
+        volumeMounts:
+        - mountPath: /var/lib/clickhouse
+          name: data
+        - mountPath: /var/log/clickhouse-server
+          name: log
+        resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 512Mi
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: clickhouse-data
+      - name: log
+        persistentVolumeClaim:
+          claimName: clickhouse-log
+      
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: clickhouse-data
+  namespace: sentry
+spec:
+  storageClassName: ali-nas-subpath
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: clickhouse-log
+  namespace: sentry
+spec:
+  storageClassName: ali-nas-subpath
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: clickhouse
+  namespace: sentry
+spec:
+  ports:
+    - name: p1
+      port: 8123
+      protocol: TCP
+      targetPort: 8123
+    - name: p2
+      port: 9000
+      protocol: TCP
+      targetPort: 9000
+    - name: p3
+      port: 9009
+      protocol: TCP
+      targetPort: 9009
+  clusterIP: None
+  selector:
+    app: clickhouse
+  sessionAffinity: None
+  type: ClusterIP

@@ -1,0 +1,37 @@
+__consumer_offsets 50 1
+cdc
+errors-replacements
+event-replacements
+events
+ingest-attachments
+ingest-events
+ingest-sessions
+ingest-transactions
+outcomes
+snuba-commit-log 
+
+
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --create  --replication-factor 1 --partitions 1 --topic cdc
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --create  --replication-factor 1 --partitions 50 --topic __consumer_offsets
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --create  --replication-factor 1 --partitions 1 --topic errors-replacements
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --create  --replication-factor 1 --partitions 1 --topic event-replacements
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --create  --replication-factor 1 --partitions 1 --topic events
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --create  --replication-factor 1 --partitions 1 --topic ingest-attachments
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --create  --replication-factor 1 --partitions 1 --topic ingest-events
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --create  --replication-factor 1 --partitions 1 --topic ingest-sessions
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --create  --replication-factor 1 --partitions 1 --topic ingest-transactions
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --create  --replication-factor 1 --partitions 1 --topic outcomes
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --create  --replication-factor 1 --partitions 1 --topic snuba-commit-log
+
+
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --alter --partitions 10 --topic cdc
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --alter  --replication-factor 1 --partitions 50 --topic __consumer_offsets
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --alter --partitions 10 --topic errors-replacements
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --alter --partitions 10 --topic event-replacements
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --alter --partitions 10 --topic events
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --alter --partitions 10 --topic ingest-attachments
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --alter --partitions 10 --topic ingest-events
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --alter --partitions 10 --topic ingest-sessions
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --alter --partitions 10 --topic ingest-transactions
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --alter --partitions 10 --topic outcomes
+./bin/kafka-topics.sh --zookeeper 172.16.176.250:2181/kafka --alter --partitions 10 --topic snuba-commit-log

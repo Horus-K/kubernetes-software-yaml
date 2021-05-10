@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: nbugs-sentry
-  labels:
-    app: nbugs-sentry
-    chart: "sentry-4.3.3"
-    release: "nbugs-sentry"
-    heritage: "Helm"

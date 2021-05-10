@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nbugs-redis
+  namespace: sentry
+  labels:
+    app: nbugs-redis
+spec:
+  selector:
+    matchLabels:
+        app: nbugs-redis
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nbugs-redis
+    spec:
+      containers:
+      - name: nbugs-redis
+        image: "redis:5.0-alpine"
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 6379
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        resources:
+            limits:
+              cpu: 1000m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 300Mi
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: redis-data
+      
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data
+  namespace: sentry
+spec:
+  storageClassName: ali-nas-subpath
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: sentry
+spec:
+  ports:
+    - name: tcp
+      port: 6379
+      protocol: TCP
+      targetPort: 6379
+  selector:
+    app: nbugs-redis
+  clusterIP: None
+  sessionAffinity: None
+  type: ClusterIP

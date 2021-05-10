@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: symbolicator
+  namespace: sentry
+  labels:
+    app: symbolicator
+spec:
+  selector:
+    matchLabels:
+        app: symbolicator
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: symbolicator
+    spec:
+      containers:
+      - name: symbolicator
+        image: "getsentry/symbolicator:17269fd5432f3d8fcb738081fac640a45639fd54"
+        imagePullPolicy: IfNotPresent
+        command:
+          - "/bin/bash"
+        args:
+          - /docker-entrypoint.sh
+          - run
+          - -c
+          - /etc/symbolicator/config.yml
+        ports:
+          - containerPort: 3021
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /etc/symbolicator
+          name: conf
+        resources:
+            limits:
+              cpu: 1000m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 300Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: symbolicator-data
+        - name: conf
+          persistentVolumeClaim:
+            claimName: symbolicator-conf
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: symbolicator-data
+  namespace: sentry
+spec:
+  storageClassName: ali-nas-subpath
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: symbolicator-conf
+  namespace: sentry
+spec:
+  storageClassName: ali-nas-subpath
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: symbolicator
+  namespace: sentry
+spec:
+  ports:
+    - name: tcp
+      port: 3021
+      protocol: TCP
+      targetPort: 3021
+  selector:
+    app: symbolicator
+  sessionAffinity: None
+  type: ClusterIP

@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nbugs-memcached
+  namespace: sentry
+  labels:
+    app: nbugs-memcached
+spec:
+  selector:
+    matchLabels:
+        app: nbugs-memcached
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nbugs-memcached
+    spec:
+      containers:
+      - name: nbugs-memcached
+        image: "memcached:1.5-alpine"
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 11211
+        resources:
+            limits:
+              cpu: 1000m
+              memory: 300Mi
+            requests:
+              cpu: 100m
+              memory: 300Mi
+      
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memcached
+  namespace: sentry
+spec:
+  ports:
+    - name: tcp
+      port: 11211
+      protocol: TCP
+      targetPort: 11211
+  clusterIP: None
+  selector:
+    app: nbugs-memcached
+  sessionAffinity: None
+  type: ClusterIP

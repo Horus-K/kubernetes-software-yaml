@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: post-process-forwarder
+  namespace: sentry
+  labels:
+    app: post-process-forwarder
+spec:
+  selector:
+    matchLabels:
+        app: post-process-forwarder
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: post-process-forwarder
+    spec:
+      containers:
+      - name: post-process-forwarder
+        image: "registry.cn-hangzhou.aliyuncs.com/nbugs-share/sentry:sentry-onpremise-local"
+        imagePullPolicy: IfNotPresent
+        command:
+          - "/bin/sh"
+        args:
+          - "-c"
+          - exec /docker-entrypoint.sh $0 $@
+          - run
+          - post-process-forwarder
+          - --commit-batch-size 1
+        ports:
+        - containerPort: 9000
+        env:
+          - name: SENTRY_CONF
+            value: '/etc/sentry'
+          - name: SNUBA
+            value: 'http://snuba-api:1218'
+        volumeMounts:
+        - mountPath: /data
+          name: data
+        - mountPath: /etc/sentry
+          name: config
+        resources:
+            limits:
+              cpu: 500m
+              memory: 300Mi
+            requests:
+              cpu: 500m
+              memory: 300Mi
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: sentry-data
+      - name: config
+        persistentVolumeClaim:
+          claimName: sentry-conf
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingest-consumer
+  namespace: sentry
+spec:
+  ports:
+    - name: tcp
+      port: 9000
+      protocol: TCP
+      targetPort: 9000
+  selector:
+    app: post-process-forwarder
+  type: ClusterIP

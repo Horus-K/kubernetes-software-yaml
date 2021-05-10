@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nbugs-postgres
+  namespace: sentry
+  labels:
+    app: nbugs-postgres
+spec:
+  selector:
+    matchLabels:
+        app: nbugs-postgres
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nbugs-postgres
+    spec:
+      containers:
+      - name: nbugs-postgres
+        image: "postgres:9.6"
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 5432
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: data
+        resources:
+            limits:
+              cpu: 1000m
+              memory: 1000Mi
+            requests:
+              cpu: 100m
+              memory: 300Mi
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: postgres-data
+      
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: sentry
+spec:
+  storageClassName: ali-nas-subpath
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: sentry
+spec:
+  ports:
+    - name: tcp
+      port: 5432
+      protocol: TCP
+      targetPort: 5432
+  selector:
+    app: nbugs-postgres
+  sessionAffinity: None
+  type: ClusterIP

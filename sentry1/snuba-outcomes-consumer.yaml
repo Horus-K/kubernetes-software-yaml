@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: snuba-outcomes-consumer
+  namespace: sentry
+  labels:
+    app: snuba-outcomes-consumer
+spec:
+  selector:
+    matchLabels:
+        app: snuba-outcomes-consumer
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: snuba-outcomes-consumer
+    spec:
+      containers:
+      - name: snuba-outcomes-consumer
+        image: "getsentry/snuba:20.8.0"
+        imagePullPolicy: IfNotPresent
+        command:
+          - '/usr/src/snuba/docker_entrypoint.sh'
+          - consumer
+          - --storage
+          - outcomes_raw
+          - --auto-offset-reset=earliest
+          - --max-batch-time-ms
+          - '750'
+        ports:
+          - containerPort: 1218
+        env:
+          - name: SNUBA_SETTINGS
+            value: docker
+          - name: CLICKHOUSE_HOST
+            value: clickhouse
+          - name: DEFAULT_BROKERS
+            valueFrom:
+              configMapKeyRef:
+                name: sentry-conf
+                key: kafka-host
+          - name: REDIS_HOST
+            value: redis
+          - name: UWSGI_MAX_REQUESTS
+            value: '10000'
+          - name: UWSGI_DISABLE_LOGGING
+            value: 'true'
+        resources:
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 512Mi
+      
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: snuba-outcomes-consumer
+  namespace: sentry
+spec:
+  ports:
+    - name: tcp
+      port: 1218
+      protocol: TCP
+      targetPort: 1218
+  clusterIP: None
+  selector:
+    app: snuba-outcomes-consumer
+  sessionAffinity: None
+  type: ClusterIP

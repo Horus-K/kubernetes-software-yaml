@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: snuba-cleanup
+  namespace: sentry
+  labels:
+    app: snuba-cleanup
+spec:
+  selector:
+    matchLabels:
+        app: snuba-cleanup
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: snuba-cleanup
+    spec:
+      containers:
+      - name: snuba-cleanup
+        image: "registry.cn-hangzhou.aliyuncs.com/nbugs-share/sentry:snuba-cleanup-onpremise-local"
+        imagePullPolicy: IfNotPresent
+        command:
+          - "/entrypoint.sh"
+        args:
+          - '*/5 * * * * gosu snuba snuba cleanup --dry-run False'
+        ports:
+          - containerPort: 1218
+        env:
+          - name: SNUBA_SETTINGS
+            value: docker
+          - name: CLICKHOUSE_HOST
+            value: clickhouse
+          - name: DEFAULT_BROKERS
+            valueFrom:
+              configMapKeyRef:
+                name: sentry-conf
+                key: kafka-host
+          - name: REDIS_HOST
+            value: redis
+          - name: UWSGI_MAX_REQUESTS
+            value: '10000'
+          - name: UWSGI_DISABLE_LOGGING
+            value: 'true'
+        resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: snuba-cleanup
+  namespace: sentry
+spec:
+  ports:
+    - name: tcp
+      port: 1218
+      protocol: TCP
+      targetPort: 1218
+  selector:
+    app: snuba-cleanup
+  clusterIP: None
+  sessionAffinity: None
+  type: ClusterIP

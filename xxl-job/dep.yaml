@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: xxl-job-admin-test
+  namespace: devops
+spec:
+  selector:
+    matchLabels:
+      app: xxl-job-admin-test
+  template:
+    metadata:
+      labels:
+        app: xxl-job-admin-test
+    spec:
+      containers:
+        - name: xxl-job-admin
+          image: 'xuxueli/xxl-job-admin:2.3.0'
+          ports:
+            - containerPort: 8080
+          env:
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+            - name: PARAMS
+              value: >-
+                --spring.datasource.url=jdbc:mysql://test-mysql.intranet.nbugs.com:3306/xxl_job_23?Unicode=true&characterEncoding=UTF-8&useSSL=false
+                --spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+                --spring.mail.host=smtp.qq.com
+                --spring.mail.port=25
+                ---spring.mail.properties.mail.smtp.auth=true
+                ---spring.mail.properties.mail.smtp.starttls.enable=true
+                ---spring.mail.properties.mail.smtp.starttls.required=true
+                --spring.datasource.username=admin_nbugs
+                --spring.datasource.password=admin_nbugs20200126jdisoj
+                --spring.mail.username=jira@nbugs.com
+                --spring.mail.password=Nbyw2019
+                --xxl.job.accessToken=M0Tipyl3899Ezg8FGsBVs9kdC0Wf48tJ
+                --xxl.job.logretentiondays=30
+                --xxl.job.i18n=zh_CN
+          volumeMounts:
+            - mountPath: /data/applogs
+              name: applogs
+          resources:
+            limits:
+              cpu: "1"
+              memory: "1024Mi"
+            requests:
+              cpu: "0.2"
+              memory: "1024Mi"
+      volumes:
+        - name: applogs
+          persistentVolumeClaim:
+            claimName: applogs-test
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: applogs-test
+  namespace: devops
+  annotations:
+    volume.beta.kubernetes.io/storage-class: "alicloud-nas-fast"
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: xxl-job-admin-test
+  namespace: devops
+  labels:
+    app: xxl-job-admin-test
+spec:
+  ports:
+    - port: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: xxl-job-admin-test

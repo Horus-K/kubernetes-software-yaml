@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nbugs-kafka
+  namespace: sentry
+  labels:
+    app: nbugs-kafka
+spec:
+  selector:
+    matchLabels:
+        app: nbugs-kafka
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nbugs-kafka
+    spec:
+      containers:
+      - name: kafka
+        image: "confluentinc/cp-kafka:5.5.0"
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 9092
+        volumeMounts:
+        - mountPath: /var/lib/kafka/data
+          name: data
+        - mountPath: /var/lib/kafka/log
+          name: log
+        - mountPath: /etc/kafka/secrets
+          name: secrets
+        env:
+          - name: KAFKA_ZOOKEEPER_CONNECT
+            value: 'zk-0.zk-hs.canal:2181,zk-1.zk-hs.canal:2181,zk-2.zk-hs.canal:2181'
+          - name: KAFKA_ADVERTISED_LISTENERS
+            value: 'PLAINTEXT://kafka.kafka.svc.nbugs.local:9092'
+          - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+            value: '1'
+          - name: KAFKA_MESSAGE_MAX_BYTES
+            value: '50000000'
+          - name: KAFKA_MAX_REQUEST_SIZE
+            value: '50000000'
+          - name: CONFLUENT_SUPPORT_METRICS_ENABLE
+            value: 'false'
+          - name: KAFKA_LOG4J_LOGGERS
+            value: >-
+              kafka.cluster=INFO,kafka.controller=INFO,kafka.coordinator=INFO,kafka.log=INFO,kafka.server=INFO,kafka.zookeeper=INFO,state.change.logger=INFO
+          - name: KAFKA_LOG4J_ROOT_LOGLEVEL
+            value: INFO
+          - name: KAFKA_TOOLS_LOG4J_LOGLEVEL
+            value: INFO
+        resources:
+            limits:
+              cpu: 1000m
+              memory: 1024Mi
+            requests:
+              cpu: 100m
+              memory: 1024Mi
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: kafka-data
+      - name: log
+        persistentVolumeClaim:
+          claimName: kafka-log
+      - name: secrets
+        persistentVolumeClaim:
+          claimName: kafka-secrets
+      
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kafka-data
+  namespace: sentry
+spec:
+  storageClassName: ali-nas-subpath
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kafka-log
+  namespace: sentry
+spec:
+  storageClassName: ali-nas-subpath
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kafka-secrets
+  namespace: sentry
+spec:
+  storageClassName: ali-nas-subpath
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: sentry
+spec:
+  ports:
+    - name: tcp
+      port: 9092
+      protocol: TCP
+      targetPort: 9092
+  selector:
+    app: nbugs-kafka
+  sessionAffinity: None
+  type: ClusterIP
