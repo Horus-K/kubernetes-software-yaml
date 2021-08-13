@@ -1,0 +1,87 @@
+---
+apiVersion: apps/v1 
+kind: Deployment
+metadata:
+  name: etcd-test
+  namespace: devops
+spec:
+  selector:
+    matchLabels:
+      app: etcd-test
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: etcd-test
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: cn-hangzhou.10.10.198.29
+      containers:
+      - name: etcd
+        image: registry-vpc.cn-hangzhou.aliyuncs.com/nbugs-share/etcd:v3.5.0
+        command:
+          - "/usr/local/bin/etcd"
+        args:
+          - --name
+          - s1
+          - --data-dir
+          - /etcd-data
+          - --listen-client-urls
+          - http://0.0.0.0:2379
+          - --advertise-client-urls
+          - http://0.0.0.0:2379
+          - --listen-peer-urls
+          - http://0.0.0.0:2380
+          - --initial-advertise-peer-urls
+          - http://0.0.0.0:2380
+          - --initial-cluster
+          - s1=http://0.0.0.0:2380
+          - --initial-cluster-token
+          - tkn
+          - --initial-cluster-state
+          - new
+          - --log-level
+          - info
+          - --logger
+          - zap
+          - --log-outputs
+          - stderr
+        ports:
+        - containerPort: 2380
+          name: t1
+          protocol: TCP
+        - containerPort: 2379
+          name: t2
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+        volumeMounts:
+        - name: etcd-data
+          mountPath: /etcd-data
+      volumes:
+      - name: etcd-data
+        hostPath:
+            path: /data/etcd-data
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: etcd-test
+  namespace: devops 
+  labels:
+    app: etcd-test
+spec:
+  selector:
+    app: etcd-test
+  type: NodePort
+  ports:
+  - name: t1
+    port: 2380
+  - name: t2
+    port: 2379
