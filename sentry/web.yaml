@@ -1,0 +1,177 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: sentry
+  labels:
+    app: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: sentry-data
+        - name: config
+          persistentVolumeClaim:
+            claimName: sentry-conf
+        - name: config-nginx
+          persistentVolumeClaim:
+            claimName: nbugs-nginx
+      containers:
+        - name: web
+          image: >-
+            registry-vpc.cn-hangzhou.aliyuncs.com/nbugs-share/sentry:sentry-onpremise-local-v1
+          command:
+            - /bin/sh
+            - '-c'
+            - exec /docker-entrypoint.sh $0 $@
+          args:
+            - run
+            - web
+          ports:
+            - containerPort: 9000
+              protocol: TCP
+          env:
+            - name: SENTRY_CONF
+              value: /etc/sentry
+            - name: SNUBA
+              value: 'http://snuba-api:1218'
+          resources:
+            limits:
+              cpu: '2'
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /etc/sentry
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+        - name: relay
+          image: >-
+            registry-vpc.cn-hangzhou.aliyuncs.com/nbugs-share/sentry:relay-local-1
+          command:
+            - /bin/bash
+          args:
+            - /docker-entrypoint.sh
+            - run
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          env:
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+          resources:
+            limits:
+              cpu: '1'
+              memory: 300Mi
+            requests:
+              cpu: '1'
+              memory: 300Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: Always
+        - name: api
+          image: 'getsentry/snuba:20.8.0'
+          command:
+            - /usr/src/snuba/docker_entrypoint.sh
+          args:
+            - api
+          ports:
+            - containerPort: 1218
+              protocol: TCP
+          env:
+            - name: SNUBA_SETTINGS
+              value: docker
+            - name: CLICKHOUSE_HOST
+              value: clickhouse
+            - name: DEFAULT_BROKERS
+              valueFrom:
+                configMapKeyRef:
+                  name: sentry-conf
+                  key: kafka-host
+            - name: REDIS_HOST
+              value: redis
+            - name: UWSGI_MAX_REQUESTS
+              value: '10000'
+            - name: UWSGI_DISABLE_LOGGING
+              value: 'true'
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 500m
+              memory: 512Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+        - name: nginx
+          image: 'nginx:1.16'
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          env:
+            - name: aliyun_logs_sentry
+              value: stdout
+            - name: aliyun_logs_logtag_tags
+              value: app=nginx
+          resources:
+            limits:
+              cpu: '1'
+              memory: 300Mi
+            requests:
+              cpu: '1'
+              memory: 300Mi
+          volumeMounts:
+            - name: config-nginx
+              readOnly: true
+              mountPath: /etc/nginx
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      securityContext: {}
+      schedulerName: default-scheduler
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%
+  revisionHistoryLimit: 10
+  progressDeadlineSeconds: 600
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: sentry
+spec:
+  ports:
+    - name: tcp
+      port: 9000
+      protocol: TCP
+      targetPort: 9000
+  clusterIP: None
+  selector:
+    app: web
+  type: ClusterIP

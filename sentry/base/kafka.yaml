@@ -1,0 +1,194 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: sentry
+  labels:
+    app.kubernetes.io/component: kafka
+    app.kubernetes.io/instance: kafka
+    app.kubernetes.io/name: kafka
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: kafka
+      app.kubernetes.io/instance: kafka
+      app.kubernetes.io/name: kafka
+  template:
+    metadata:
+      labels:
+        app: sentry-kafka
+        app.kubernetes.io/component: kafka
+        app.kubernetes.io/instance: kafka
+        app.kubernetes.io/name: kafka
+    spec:
+      volumes:
+        - name: scripts
+          configMap:
+            name: kafka-scripts
+            defaultMode: 493
+        - name: logs
+          emptyDir: {}
+      containers:
+        - name: kafka
+          image: 'docker.io/bitnami/kafka:2.8.0-debian-10-r0'
+          command:
+            - /scripts/setup.sh
+          ports:
+            - name: kafka-client
+              containerPort: 9092
+              protocol: TCP
+            - name: kafka-internal
+              containerPort: 9093
+              protocol: TCP
+          env:
+            - name: BITNAMI_DEBUG
+              value: 'false'
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.podIP
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: KAFKA_CFG_ZOOKEEPER_CONNECT
+              value: 'zk-cs.canal.svc.nbugs.local:2181/kafka'
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: INTERNAL
+            - name: KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP
+              value: 'INTERNAL:PLAINTEXT,CLIENT:PLAINTEXT'
+            - name: KAFKA_CFG_LISTENERS
+              value: 'INTERNAL://:9093,CLIENT://:9092'
+            - name: KAFKA_CFG_ADVERTISED_LISTENERS
+              value: >-
+                INTERNAL://$(MY_POD_NAME).kafka-headless.sentry.svc.nbugs.local:9093,CLIENT://$(MY_POD_NAME).kafka-headless.sentry.svc.nbugs.local:9092
+            - name: ALLOW_PLAINTEXT_LISTENER
+              value: 'yes'
+            - name: KAFKA_VOLUME_DIR
+              value: /bitnami/kafka
+            - name: KAFKA_LOG_DIR
+              value: /opt/bitnami/kafka/logs
+            - name: KAFKA_CFG_DELETE_TOPIC_ENABLE
+              value: 'false'
+            - name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE
+              value: 'true'
+            - name: KAFKA_HEAP_OPTS
+              value: '-Xmx1500m -Xms1500m'
+            - name: KAFKA_CFG_LOG_FLUSH_INTERVAL_MESSAGES
+              value: '10000'
+            - name: KAFKA_CFG_LOG_FLUSH_INTERVAL_MS
+              value: '1000'
+            - name: KAFKA_CFG_LOG_RETENTION_BYTES
+              value: '1073741824'
+            - name: KAFKA_CFG_LOG_RETENTION_CHECK_INTERVALS_MS
+              value: '300000'
+            - name: KAFKA_CFG_LOG_RETENTION_HOURS
+              value: '168'
+            - name: KAFKA_CFG_MESSAGE_MAX_BYTES
+              value: '1000012'
+            - name: KAFKA_CFG_LOG_SEGMENT_BYTES
+              value: '1073741824'
+            - name: KAFKA_CFG_LOG_DIRS
+              value: /bitnami/kafka/data
+            - name: KAFKA_CFG_DEFAULT_REPLICATION_FACTOR
+              value: '1'
+            - name: KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: '1'
+            - name: KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: '1'
+            - name: KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR
+              value: '1'
+            - name: KAFKA_CFG_NUM_IO_THREADS
+              value: '16'
+            - name: KAFKA_CFG_NUM_NETWORK_THREADS
+              value: '6'
+            - name: KAFKA_CFG_NUM_PARTITIONS
+              value: '1'
+            - name: KAFKA_CFG_NUM_RECOVERY_THREADS_PER_DATA_DIR
+              value: '1'
+            - name: KAFKA_CFG_SOCKET_RECEIVE_BUFFER_BYTES
+              value: '1024000'
+            - name: KAFKA_CFG_SOCKET_REQUEST_MAX_BYTES
+              value: '104857600'
+            - name: KAFKA_CFG_SOCKET_SEND_BUFFER_BYTES
+              value: '102400'
+            - name: KAFKA_CFG_ZOOKEEPER_CONNECTION_TIMEOUT_MS
+              value: '6000'
+          resources:
+            limits:
+              cpu: '2'
+              memory: 2Gi
+            requests:
+              cpu: '1'
+              memory: 2Gi
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/kafka
+            - name: logs
+              mountPath: /opt/bitnami/kafka/logs
+            - name: scripts
+              mountPath: /scripts/setup.sh
+              subPath: setup.sh
+          livenessProbe:
+            tcpSocket:
+              port: kafka-client
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: kafka-client
+            initialDelaySeconds: 20
+            timeoutSeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 6
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+      dnsPolicy: ClusterFirst
+      serviceAccountName: kafka
+      serviceAccount: kafka
+      securityContext:
+        runAsUser: 1001
+        fsGroup: 1001
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: kafka
+                    app.kubernetes.io/name: kafka
+                namespaces:
+                  - kafka
+                topologyKey: kubernetes.io/hostname
+      schedulerName: default-scheduler
+  volumeClaimTemplates:
+    - kind: PersistentVolumeClaim
+      apiVersion: v1
+      metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 15Gi
+        storageClassName: ali-nas-subpath
+        volumeMode: Filesystem
+      status:
+        phase: Pending
+  serviceName: kafka-headless
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  revisionHistoryLimit: 10

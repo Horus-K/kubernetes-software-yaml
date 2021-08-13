@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: snuba-api
+  namespace: sentry
+  labels:
+    app: snuba-api
+spec:
+  selector:
+    matchLabels:
+        app: snuba-api
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: snuba-api
+    spec:
+      containers:
+      - name: api
+        image: "getsentry/snuba:20.8.0"
+        imagePullPolicy: IfNotPresent
+        command:
+          - "/usr/src/snuba/docker_entrypoint.sh"
+        args:
+          - api
+        ports:
+          - containerPort: 1218
+        env:
+          - name: SNUBA_SETTINGS
+            value: docker
+          - name: CLICKHOUSE_HOST
+            value: clickhouse
+          - name: DEFAULT_BROKERS
+            valueFrom:
+              configMapKeyRef:
+                name: sentry-conf
+                key: kafka-host
+          - name: REDIS_HOST
+            value: redis
+          - name: UWSGI_MAX_REQUESTS
+            value: '10000'
+          - name: UWSGI_DISABLE_LOGGING
+            value: 'true'
+        resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 512Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: snuba-api
+  namespace: sentry
+spec:
+  ports:
+    - name: tcp
+      port: 1218
+      protocol: TCP
+      targetPort: 1218
+  clusterIP: None
+  selector:
+    app: web # 将web与realy放到同一个pod里
+  sessionAffinity: None
+  type: ClusterIP
