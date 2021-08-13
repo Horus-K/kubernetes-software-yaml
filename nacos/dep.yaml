@@ -3,8 +3,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: nacos-headless
-  labels:
-    app: nacos
+  namespace: default
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
@@ -12,34 +11,44 @@ spec:
     - port: 8848
       name: server
       targetPort: 8848
+    - port: 9848
+      name: client-rpc
+      targetPort: 9848
+    - port: 9849
+      name: raft-rpc
+      targetPort: 9849
+    ## 兼容1.4.x版本的选举端口
     - port: 7848
-      name: rpc
+      name: old-raft-rpc
       targetPort: 7848
   clusterIP: None
   selector:
-    app: nacos
+    app: nacos-test
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nacos-cm
+  namespace: default
 data:
-  mysql.db.name: "nacos_devtest"
+  mysql.db.name: "nacos_test"
+  mysql.host: test-mysql.intranet.nbugs.com
   mysql.port: "3306"
-  mysql.user: "nacos"
-  mysql.password: "nacos"
+  mysql.user: "admin_nbugs"
+  mysql.password: "admin_nbugs20200126jdisoj"
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nacos
+  namespace: default
 spec:
   serviceName: nacos-headless
-  replicas: 3
+  replicas: 1
   template:
     metadata:
       labels:
-        app: nacos
+        app: nacos-test
       annotations:
         pod.alpha.kubernetes.io/initialized: "true"
     spec:
@@ -53,14 +62,15 @@ spec:
                     values:
                       - nacos
               topologyKey: "kubernetes.io/hostname"
-      serviceAccountName: nfs-client-provisioner
+
       initContainers:
         - name: peer-finder-plugin-install
-          image: nacos/nacos-peer-finder-plugin:1.0
+          image: nacos/nacos-peer-finder-plugin:1.1
           imagePullPolicy: Always
           volumeMounts:
-            - mountPath: "/home/nacos/plugins/peer-finder"
-              name: plugindir
+            - mountPath: /home/nacos/plugins/peer-finder
+              name: nacos-data-test
+              subPath: peer-finder
       containers:
         - name: nacos
           imagePullPolicy: Always
@@ -72,15 +82,19 @@ spec:
           ports:
             - containerPort: 8848
               name: client-port
+            - containerPort: 9848
+              name: client-rpc
+            - containerPort: 9849
+              name: raft-rpc
             - containerPort: 7848
-              name: rpc
+              name: old-raft-rpc
           env:
             - name: NACOS_REPLICAS
               value: "3"
             - name: SERVICE_NAME
               value: "nacos-headless"
             - name: DOMAIN_NAME
-              value: "cluster.local"
+              value: "k8s.nbugs"
             - name: POD_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -113,40 +127,25 @@ spec:
             - name: PREFER_HOST_MODE
               value: "hostname"
           volumeMounts:
-            - name: plugindir
+            - name: nacos-data-test
               mountPath: /home/nacos/plugins/peer-finder
-            - name: datadir
+              subPath: peer-finder
+            - name: nacos-data-test
               mountPath: /home/nacos/data
-            - name: logdir
+              subPath: data
+            - name: nacos-data-test
               mountPath: /home/nacos/logs
+              subPath: logs
   volumeClaimTemplates:
     - metadata:
-        name: plugindir
+        name: nacos-data-test
         annotations:
-          volume.beta.kubernetes.io/storage-class: "managed-nfs-storage"
+          volume.beta.kubernetes.io/storage-class: "ali-nas-subpath"
       spec:
         accessModes: [ "ReadWriteMany" ]
         resources:
           requests:
-            storage: 5Gi
-    - metadata:
-        name: datadir
-        annotations:
-          volume.beta.kubernetes.io/storage-class: "managed-nfs-storage"
-      spec:
-        accessModes: [ "ReadWriteMany" ]
-        resources:
-          requests:
-            storage: 5Gi
-    - metadata:
-        name: logdir
-        annotations:
-          volume.beta.kubernetes.io/storage-class: "managed-nfs-storage"
-      spec:
-        accessModes: [ "ReadWriteMany" ]
-        resources:
-          requests:
-            storage: 5Gi
+            storage: 20Gi
   selector:
     matchLabels:
-      app: nacos
+      app: nacos-test
